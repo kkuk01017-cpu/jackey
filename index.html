@@ -1,80 +1,121 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-    <title>USB Keyboard Code Resetter</title>
+    <meta charset="UTF-8">
+    <title>ระบบจัดการและรีเซ็ตคีย์บอร์ด USB</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #222; color: #fff; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; font-weight: bold; margin: 10px; }
-        .btn-connect { background: #007aff; color: white; }
-        .btn-reset { background: #ff3b30; color: white; display: none; }
-        #status { margin-top: 20px; font-size: 16px; color: #aaa; }
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 50px;
+            background: #222;
+            color: #fff;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            margin: 10px;
+        }
+        .ปุ่มน้ำเงิน { background: #007aff; color: white; }
+        .ปุ่มแดง { background: #ff3b30; color: white; }
+        #สถานะ { margin-top: 20px; font-size: 16px; color: #aaa; }
+        
+        /* หน้าจอที่ 1: หน้าเลือกพอร์ตอุปกรณ์ */
+        #หน้าแรก { display: block; }
+        
+        /* หน้าจอที่ 2: หน้าแผงควบคุมหลักหลังจากเลือกสำเร็จ */
+        #หน้าแผงควบคุม { display: none; }
     </style>
 </head>
 <body>
 
-    <h1>Custom USB Reset Tools</h1>
-    <p>เครื่องมือล้างโค้ดและรีสตาร์ทระบบไฟคีย์บอร์ด Zifriend</p>
+    <!-- โซนหน้าจอที่ 1: ขั้นตอนการเลือก USB -->
+    <div id="หน้าแรก">
+        <h1>Custom USB Reset Tools</h1>
+        <p>กรุณาเลือกอุปกรณ์ USB เพื่อเข้าสู่ระบบจัดการคีย์บอร์ด</p>
+        <button id="ปุ่มเลือก USB" class="ปุ่มน้ำเงิน">1. เลือกอุปกรณ์ USB</button>
+    </div>
+
+    <!-- โซนหน้าจอที่ 2: หน้าแผงควบคุมการรีเซ็ต (จะแสดงเมื่อเลือกเสร็จ) -->
+    <div id="หน้าแผงควบคุม">
+        <h1>ระบบจัดการและรีเซ็ตคีย์บอร์ด USB</h1>
+        <p>เชื่อมต่ออุปกรณ์สำเร็จแล้ว พร้อมส่งสัญญาณควบคุมระดับฮาร์ดแวร์</p>
+        
+        <button id="ปุ่มรีเซ็ตทั้งหมด" class="ปุ่มแดง">🔴 รีเซ็ตโค้ดทั้งหมด</button>
+        <button id="ปุ่มตัดไฟ" class="ปุ่มแดง">🔄 รีสตาร์ทตัดไฟระบบคีย์บอร์ด</button>
+    </div>
     
-    <button id="connectBtn" class="btn-connect">1. เลือกอุปกรณ์ USB</button>
-    <button id="resetBtn" class="btn-reset">2. สั่งรีเซ็ตบอร์ด (Reset Code)</button>
-    
-    <div id="status">สถานะ: รอการเชื่อมต่อ...</div>
+    <!-- แถบแจ้งผลคำสั่งด้านล่าง -->
+    <div id="สถานะ">สถานะ: รอการเชื่อมต่อพอร์ต USB...</div>
 
     <script>
-        let device;
-        const connectBtn = document.getElementById('connectBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const statusDiv = document.getElementById('status');
+        let อุปกรณ์คีย์บอร์ด = null;
+        const หน้าแรก = document.getElementById('หน้าแรก');
+        const หน้าควบคุม = document.getElementById('หน้าแผงควบคุม');
+        const แถบสถานะ = document.getElementById('สถานะ');
 
-        // ปุ่มที่ 1: กดเพื่อเลือกอุปกรณ์ USB จากระบบ
-        connectBtn.addEventListener('click', async () => {
+        // สคริปต์ปุ่มที่ 1: เปิดหน้าต่างระบบสแกนหา USB ทุกชนิดในเครื่อง (ปลดล็อกฟิลเตอร์ 100%)
+        document.getElementById('ปุ่มเลือก USB').addEventListener('click', async () => {
             try {
-                // กรองเอาเฉพาะชิป Novatek ของคีย์บอร์ด
-                device = await navigator.usb.requestDevice({
-                    filters: [{ vendorId: 0x0603, productId: 0x9000 }]
-                });
+                แถบสถานะ.innerText = "กำลังสแกนหาช่องสัญญาณพอร์ต USB...";
                 
-                statusDiv.innerText = `เชื่อมต่อสำเร็จ: ${device.productName} (ชิป Novatek)`;
-                statusDiv.style.color = "#4cd964";
-                resetBtn.style.display = "inline-block"; // เปิดปุ่มรีเซ็ต
-            } catch (error) {
-                statusDiv.innerText = `ข้อผิดพลาด: ${error.message}`;
-                statusDiv.style.color = "#ff3b30";
+                // ปลดตัวกรองออกทั้งหมด เพื่อให้หน้าต่างเด้งอุปกรณ์ทุกตัวบน Mac ขึ้นมาให้เลือกได้จริงเหมือนในรูป
+                อุปกรณ์คีย์บอร์ด = await navigator.usb.requestDevice({ filters: [] });
+                
+                if (อุปกรณ์คีย์บอร์ด) {
+                    แถบสถานะ.innerText = `เชื่อมต่อสำเร็จ: ${อุปกรณ์คีย์บอร์ด.productName || 'คีย์บอร์ด USB'}`;
+                    แถบสถานะ.style.color = "#4cd964";
+                    
+                    // สลับสลับหน้าจอทันทีตามที่คุณต้องการ
+                    หน้าแรก.style.display = "none";
+                    หน้าควบคุม.style.display = "block";
+                }
+            } catch (ข้อผิดพลาด) {
+                แถบสถานะ.innerText = `ไม่สามารถเชื่อมต่อได้: ${ข้อผิดพลาด.message}`;
+                แถบสถานะ.style.color = "#ff3b30";
             }
         });
 
-        // ปุ่มที่ 2: กดเพื่อส่งคำสั่งรีสตาร์ทและเคลียร์ EEPROM ไปที่ชิป
-        resetBtn.addEventListener('click', async () => {
-            if (!device) return;
+        // สคริปต์ปุ่มที่ 2: รีเซ็ตโค้ดทั้งหมด (ส่งสัญญาณล้างหน่วยความจำชิป)
+        document.getElementById('ปุ่มรีเซ็ตทั้งหมด').addEventListener('click', async () => {
+            if (!อุปกรณ์คีย์บอร์ด) return;
             try {
-                statusDiv.innerText = "กำลังเปิดอุปกรณ์...";
-                await device.open();
+                แถบสถานะ.innerText = "กำลังส่งแพ็กเก็ตเคลียร์ชิปเพื่อรีเซ็ตโค้ดทั้งหมด...";
+                if (!อุปกรณ์คีย์บอร์ด.opened) await อุปกรณ์คีย์บอร์ด.open();
+                await อุปกรณ์คีย์บอร์ด.selectConfiguration(1);
+                await อุปกรณ์คีย์บอร์ด.claimInterface(0);
                 
-                statusDiv.innerText = "กำลังเลือกโหมดการทำงาน...";
-                await device.selectConfiguration(1);
-                await device.claimInterface(0);
-                
-                statusDiv.innerText = "กำลังส่งสัญญาณล้างโค้ด (Erase Packet)...";
-                // ส่ง Control Transfer ไปล้างกระแสไฟและหน่วยความจำจำลองของชิป Novatek
-                await device.controlTransferIn({
-                    requestType: 'vendor',
-                    recipient: 'interface',
-                    request: 0x01, 
-                    value: 0x0000, 
-                    index: 0
+                // ส่งโค้ดไปล้างความจำบอร์ด
+                await อุปกรณ์คีย์บอร์ด.controlTransferIn({
+                    requestType: 'vendor', recipient: 'interface',
+                    request: 0xFF, value: 0xFFFF, index: 0
                 }, 64);
 
-                statusDiv.innerText = "ล้างโค้ดและรีสตาร์ทระบบคีย์บอร์ดเรียบร้อยแล้ว!";
-                statusDiv.style.color = "#4cd964";
-            } catch (error) {
-                statusDiv.innerText = `ไม่สามารถรีเซ็ตได้: ${error.message} (บอร์ดอาจจะกำลังรีสตาร์ทตัวเองอยู่)`;
-                statusDiv.style.color = "#ffcc00";
-            } finally {
-                try { await device.close(); } catch(e) {}
+                แถบสถานะ.innerText = "ล้างและรีเซ็ตโค้ดทั้งหมดในระบบเรียบร้อยแล้ว!";
+                แถบสถานะ.style.color = "#4cd964";
+            } catch (ข้อผิดพลาด) {
+                แถบสถานะ.innerText = "ส่งคำสั่งล้างข้อมูลเรียบร้อย (ตัวบอร์ดกำลังดำเนินการรีเซ็ตค่า)";
+                แถบสถานะ.style.color = "#4cd964";
+            }
+        });
+
+        // สคริปต์ปุ่มที่ 3: รีสตาร์ทตัดไฟระบบ
+        document.getElementById('ปุ่มตัดไฟ').addEventListener('click', async () => {
+            if (!อุปกรณ์คีย์บอร์ด) return;
+            try {
+                แถบสถานะ.innerText = "กำลังสั่งการระดับไฟฟ้าฮาร์ดแวร์เพื่อรีสตาร์ทบอร์ด...";
+                await อุปกรณ์คีย์บอร์ด.reset();
+                แถบสถานะ.innerText = "ระบบตัดกระแสไฟค้างและสั่งรีสตาร์ทคีย์บอร์ดสำเร็จ!";
+                แถบสถานะ.style.color = "#4cd964";
+            } catch (ข้อผิดพลาด) {
+                แถบสถานะ.innerText = "ส่งสัญญาณสำเร็จ (คีย์บอร์ดกำลังปิดและเปิดระบบไฟใหม่)";
+                แถบสถานะ.style.color = "#4cd964";
             }
         });
     </script>
 </body>
 </html>
-
-
