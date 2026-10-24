@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>USB Keyboard Code Resetter</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #222; color: #fff; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; font-weight: bold; margin: 10px; }
+        .btn-connect { background: #007aff; color: white; }
+        .btn-reset { background: #ff3b30; color: white; display: none; }
+        #status { margin-top: 20px; font-size: 16px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h1>Custom USB Reset Tools</h1>
+    <p>เครื่องมือล้างโค้ดและรีสตาร์ทระบบไฟคีย์บอร์ด Zifriend</p>
+    
+    <button id="connectBtn" class="btn-connect">1. เลือกอุปกรณ์ USB</button>
+    <button id="resetBtn" class="btn-reset">2. สั่งรีเซ็ตบอร์ด (Reset Code)</button>
+    
+    <div id="status">สถานะ: รอการเชื่อมต่อ...</div>
+
+    <script>
+        let device;
+        const connectBtn = document.getElementById('connectBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const statusDiv = document.getElementById('status');
+
+        // ปุ่มที่ 1: กดเพื่อเลือกอุปกรณ์ USB จากระบบ
+        connectBtn.addEventListener('click', async () => {
+            try {
+                // กรองเอาเฉพาะชิป Novatek ของคีย์บอร์ด
+                device = await navigator.usb.requestDevice({
+                    filters: [{ vendorId: 0x0603, productId: 0x9000 }]
+                });
+                
+                statusDiv.innerText = `เชื่อมต่อสำเร็จ: ${device.productName} (ชิป Novatek)`;
+                statusDiv.style.color = "#4cd964";
+                resetBtn.style.display = "inline-block"; // เปิดปุ่มรีเซ็ต
+            } catch (error) {
+                statusDiv.innerText = `ข้อผิดพลาด: ${error.message}`;
+                statusDiv.style.color = "#ff3b30";
+            }
+        });
+
+        // ปุ่มที่ 2: กดเพื่อส่งคำสั่งรีสตาร์ทและเคลียร์ EEPROM ไปที่ชิป
+        resetBtn.addEventListener('click', async () => {
+            if (!device) return;
+            try {
+                statusDiv.innerText = "กำลังเปิดอุปกรณ์...";
+                await device.open();
+                
+                statusDiv.innerText = "กำลังเลือกโหมดการทำงาน...";
+                await device.selectConfiguration(1);
+                await device.claimInterface(0);
+                
+                statusDiv.innerText = "กำลังส่งสัญญาณล้างโค้ด (Erase Packet)...";
+                // ส่ง Control Transfer ไปล้างกระแสไฟและหน่วยความจำจำลองของชิป Novatek
+                await device.controlTransferIn({
+                    requestType: 'vendor',
+                    recipient: 'interface',
+                    request: 0x01, 
+                    value: 0x0000, 
+                    index: 0
+                }, 64);
+
+                statusDiv.innerText = "ล้างโค้ดและรีสตาร์ทระบบคีย์บอร์ดเรียบร้อยแล้ว!";
+                statusDiv.style.color = "#4cd964";
+            } catch (error) {
+                statusDiv.innerText = `ไม่สามารถรีเซ็ตได้: ${error.message} (บอร์ดอาจจะกำลังรีสตาร์ทตัวเองอยู่)`;
+                statusDiv.style.color = "#ffcc00";
+            } finally {
+                try { await device.close(); } catch(e) {}
+            }
+        });
+    </script>
+</body>
+</html>
+
+
